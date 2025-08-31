@@ -127,6 +127,33 @@
                 opacity: 0;
             }
         }
+
+        /* Chat styles */
+        #chatContainer {
+            margin-top: 1.5rem;
+            display: none;
+            text-align: left;
+        }
+        #chatMessages {
+            height: 200px;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 0.75rem;
+        }
+        .chat-message {
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        .chat-nickname {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .chat-text {
+            color: #4b5563;
+        }
     </style>
 </head>
 <body>
@@ -147,6 +174,21 @@
             <p class="text-gray-700 text-lg font-medium">Active Users: <span id="activeUsersDisplay" class="font-bold text-blue-600">Loading...</span></p>
         </div>
 
+        <button id="chatToggleButton" class="android-button mt-4 w-full">Toggle Chat</button>
+
+        <div id="chatContainer">
+            <div class="mb-4">
+                <label for="nicknameInput" class="block text-sm font-medium text-gray-700 mb-1">Your Nickname:</label>
+                <input type="text" id="nicknameInput" placeholder="Enter Nickname" maxlength="25" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
+            </div>
+            <div id="chatMessages"></div>
+            <div class="flex mt-2">
+                <input type="text" id="messageInput" placeholder="Send a message..." maxlength="500" class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
+                <button id="sendMessageButton" class="px-4 py-2 bg-green-500 text-white font-medium rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Send</button>
+            </div>
+            <p id="chatLockMessage" class="text-red-500 mt-2 hidden">Sorry, chat isn't available right now. Check back later.</p>
+        </div>
+
         <div class="mt-4 text-xs text-gray-500">
             User ID: <span id="userIdDisplay">Loading...</span>
         </div>
@@ -156,7 +198,7 @@
         // Firebase SDK imports for Realtime Database
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
-        import { getDatabase, ref, onValue, runTransaction, set, onDisconnect } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+        import { getDatabase, ref, onValue, runTransaction, set, onDisconnect, push } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -178,6 +220,15 @@
         const activeUsersDisplay = document.getElementById('activeUsersDisplay');
         const userIdDisplay = document.getElementById('userIdDisplay');
         const lockMessage = document.getElementById('lockMessage');
+        const chatToggleButton = document.getElementById('chatToggleButton');
+        const chatContainer = document.getElementById('chatContainer');
+        const nicknameInput = document.getElementById('nicknameInput');
+        const messageInput = document.getElementById('messageInput');
+        const sendMessageButton = document.getElementById('sendMessageButton');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatLockMessage = document.getElementById('chatLockMessage');
+
+        let userNickname = null;
 
         // Function to set the loading state of the button
         function setLoading(isLoading) {
@@ -208,6 +259,23 @@
             }
         }
 
+        // Function to lock/unlock the chat
+        function setChatLocked(isLocked) {
+            if (isLocked) {
+                sendMessageButton.disabled = true;
+                sendMessageButton.classList.add('bg-gray-400');
+                sendMessageButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                messageInput.disabled = true;
+                chatLockMessage.classList.remove('hidden');
+            } else {
+                sendMessageButton.disabled = false;
+                sendMessageButton.classList.remove('bg-gray-400');
+                sendMessageButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                messageInput.disabled = false;
+                chatLockMessage.classList.add('hidden');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             setLoading(true);
             clickCountDisplay.textContent = 'Connecting...';
@@ -228,10 +296,26 @@
                 const usersRef = ref(db, 'active_users');
                 const userRef = ref(db, `active_users/${user.uid}`);
                 const lockedRef = ref(db, 'locked');
+                const userNicknameRef = ref(db, `users/${user.uid}/nickname`);
+                const messagesRef = ref(db, 'messages');
+                const chatLockedRef = ref(db, 'chatlocked');
 
                 // Set user presence
                 onDisconnect(userRef).remove();
                 set(userRef, true);
+
+                // Load nickname from database
+                onValue(userNicknameRef, (snapshot) => {
+                    const nickname = snapshot.val();
+                    if (nickname) {
+                        userNickname = nickname;
+                        nicknameInput.value = nickname;
+                        nicknameInput.disabled = false;
+                    } else {
+                        nicknameInput.disabled = false;
+                        nicknameInput.placeholder = "Enter a nickname to chat!";
+                    }
+                }, { onlyOnce: true });
 
                 // Listener for global click count
                 onValue(globalCountRef, (snapshot) => {
@@ -264,6 +348,30 @@
                 }, (error) => {
                     console.error("Error listening to locked status:", error);
                 });
+
+                // Listener for chat messages
+                onValue(messagesRef, (snapshot) => {
+                    chatMessages.innerHTML = '';
+                    snapshot.forEach((childSnapshot) => {
+                        const message = childSnapshot.val();
+                        const messageElement = document.createElement('div');
+                        messageElement.classList.add('chat-message');
+                        messageElement.innerHTML = `<span class="chat-nickname">${message.nickname}:</span> <span class="chat-text">${message.text}</span>`;
+                        chatMessages.appendChild(messageElement);
+                    });
+                    chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to bottom
+                }, (error) => {
+                    console.error("Error listening to messages:", error);
+                });
+
+                // Listener for chat locked status
+                onValue(chatLockedRef, (snapshot) => {
+                    const isChatLocked = snapshot.val() === true;
+                    setChatLocked(isChatLocked);
+                }, (error) => {
+                    console.error("Error listening to chat locked status:", error);
+                });
+
 
                 button.addEventListener('click', async (event) => {
                     if (button.disabled) {
@@ -302,6 +410,51 @@
                         setLoading(false);
                     });
                 });
+
+                chatToggleButton.addEventListener('click', () => {
+                    chatContainer.classList.toggle('hidden');
+                });
+
+                nicknameInput.addEventListener('change', () => {
+                    const nickname = nicknameInput.value.trim();
+                    if (nickname.length >= 3 && nickname.length <= 25) {
+                        set(userNicknameRef, nickname).then(() => {
+                            userNickname = nickname;
+                            console.log("Nickname updated successfully!");
+                        }).catch((error) => {
+                            console.error("Error updating nickname:", error);
+                        });
+                    } else {
+                        alert("Nickname must be between 3 and 25 characters.");
+                    }
+                });
+
+                sendMessageButton.addEventListener('click', () => {
+                    const message = messageInput.value.trim();
+                    const nickname = nicknameInput.value.trim();
+
+                    if (!userNickname || nickname.length < 3) {
+                        alert("Please enter a valid nickname (3-25 characters) before sending a message.");
+                        return;
+                    }
+
+                    if (message.length > 0 && message.length <= 500) {
+                        push(messagesRef, {
+                            nickname: userNickname,
+                            text: message,
+                            timestamp: Date.now()
+                        }).then(() => {
+                            messageInput.value = ''; // Clear input field
+                        }).catch((error) => {
+                            console.error("Error sending message:", error);
+                        });
+                    } else if (message.length === 0) {
+                        alert("Please enter a message to send.");
+                    } else if (message.length > 500) {
+                        alert("Message cannot exceed 500 characters.");
+                    }
+                });
+
             } catch (error) {
                 console.error("Error initializing Firebase:", error);
                 clickCountDisplay.textContent = 'Initialization Error';
