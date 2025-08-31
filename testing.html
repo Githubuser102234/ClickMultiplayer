@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -50,32 +50,39 @@
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
         }
+
         .android-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
         }
+
         .android-button:active {
             transform: translateY(0);
             box-shadow: 2px 4px rgba(0, 0, 0, 0.1);
             background-color: #43A047;
         }
+
         .android-button:focus {
             outline: none;
             box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.5);
         }
+
         /* Locked State */
         .android-button.locked {
             background-color: #9ca3af;
             cursor: not-allowed;
         }
+
         .android-button.locked:hover {
             transform: none;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+
         .android-button.locked:active {
             transform: none;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4-px 6px rgba(0, 0, 0, 0.1);
         }
+
         /* Loading State */
         .android-button.loading {
             background-color: #a0a0a0;
@@ -86,6 +93,7 @@
             transform: none;
             box-shadow: 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         /* Spinner CSS */
         .spinner {
             display: none;
@@ -97,11 +105,13 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
+
         @keyframes spin {
             to {
                 transform: rotate(360deg);
             }
         }
+
         /* Ripple effect CSS */
         .ripple {
             position: absolute;
@@ -111,12 +121,14 @@
             animation: ripple-animation 1.0s ease-out forwards;
             pointer-events: none;
         }
+
         @keyframes ripple-animation {
             to {
                 transform: scale(4);
                 opacity: 0;
             }
         }
+
         /* Chat styles */
         #chatContainer {
             margin-top: 1.5rem;
@@ -147,6 +159,7 @@
             align-items: center;
             gap: 8px;
         }
+
         /* Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -160,6 +173,7 @@
             align-items: center;
             z-index: 1000;
         }
+
         .modal-content {
             background-color: white;
             padding: 2rem;
@@ -169,6 +183,7 @@
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
             position: relative;
         }
+
         .close-button {
             position: absolute;
             top: 10px;
@@ -176,6 +191,7 @@
             font-size: 1.5rem;
             cursor: pointer;
         }
+        
         #leaderboardList {
             list-style: none;
             padding: 0;
@@ -213,6 +229,7 @@
             font-weight: bold;
             color: #4CAF50;
         }
+
         /* Alert Box Styles */
         #alertBox {
             position: fixed;
@@ -231,28 +248,11 @@
         #alertBox.show {
             opacity: 1;
         }
-        .button-holder {
-            display: inline-flex;
-            padding: 0;
-            background-color: transparent;
-            border: none;
-            box-shadow: none;
-            cursor: pointer;
-            transition: transform 0.2s ease-in-out;
-        }
-        .button-holder:hover {
-            transform: translateY(-2px);
-        }
-        .button-holder:active {
-            transform: translateY(0);
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="absolute top-4 right-4">
-            <button id="leaderboardButton" class="button-holder text-3xl">🏆</button>
-        </div>
+        <button id="leaderboardButton" class="absolute top-4 right-4 text-3xl cursor-pointer">🏆</button>
         <h1 class="text-2xl font-bold text-gray-800 mb-4">Global Clicker Game</h1>
         <p class="text-gray-600 mb-8">Click the button to add to the global count!</p>
         <p id="lockMessage" class="text-red-500 mb-2 hidden">Sorry, the global clicker is currently locked. Please check back later.</p>
@@ -260,15 +260,17 @@
             <span id="buttonText">Click Me!</span>
             <div id="spinner" class="spinner"></div>
         </button>
+
         <div class="mt-8">
             <p class="text-gray-700 text-lg font-medium">Click Count: <span id="clickCountDisplay" class="font-bold text-green-600">Loading...</span></p>
         </div>
+
         <div class="mt-4">
             <p class="text-gray-700 text-lg font-medium">Active Users: <span id="activeUsersDisplay" class="font-bold text-blue-600">Loading...</span></p>
         </div>
-        <div class="mt-4">
-            <button id="chatToggleButton" class="button-holder text-3xl">💬</button>
-        </div>
+
+        <button id="chatToggleButton" class="android-button mt-4">💬</button>
+
         <div id="chatContainer" class="hidden">
             <div class="mb-4">
                 <label for="nicknameInput" class="block text-sm font-medium text-gray-700 mb-1">Your Nickname:</label>
@@ -286,10 +288,12 @@
                 <p id="chatLockMessage" class="text-red-500 mt-2 hidden">Sorry, chat isn't available right now. Check back later.</p>
             </div>
         </div>
+
         <div class="mt-4 text-xs text-gray-500">
             User ID: <span id="userIdDisplay">Loading...</span>
         </div>
     </div>
+
     <div id="leaderboardModal" class="modal-overlay hidden">
         <div class="modal-content">
             <span class="close-button" id="closeModalButton">&times;</span>
@@ -307,12 +311,15 @@
             <ul id="leaderboardList"></ul>
         </div>
     </div>
+
     <div id="alertBox" class="hidden"></div>
+
     <script type="module">
         // Firebase SDK imports for Realtime Database
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
         import { getDatabase, ref, onValue, runTransaction, set, onDisconnect, push } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
         // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyArcFy4YmV6TnG3FCXkkPQhThNaOneQEcg",
@@ -324,6 +331,7 @@
             appId: "1:677595330762:web:12c5256ddc8e1d83291c33",
             measurementId: "G-5XDMJTGS4R"
         };
+        
         // UI elements
         const button = document.getElementById('clickButton');
         const buttonText = document.getElementById('buttonText');
@@ -348,6 +356,7 @@
         const hideInactiveCheckbox = document.getElementById('hideInactiveCheckbox');
         const hideMeCheckbox = document.getElementById('hideMeCheckbox');
         const alertBox = document.getElementById('alertBox');
+
         let userNickname = null;
         let isChatOpen = false;
         let allUsersData = {};
@@ -355,6 +364,7 @@
         let currentUserId = null;
         let globalClickCount = 0;
         let userClickCount = 0;
+
         // Function to display on-screen alerts
         function showAlert(message) {
             alertBox.textContent = message;
@@ -369,6 +379,7 @@
                 }, 300); // Wait for fade-out transition
             }, 3000);
         }
+
         // Function to set the loading state of the button
         function setLoading(isLoading) {
             button.disabled = isLoading;
@@ -382,6 +393,7 @@
                 spinner.style.display = 'none';
             }
         }
+        
         // Function to lock/unlock the button
         function setLocked(isLocked) {
             if (isLocked) {
@@ -396,6 +408,7 @@
                 lockMessage.classList.add('hidden');
             }
         }
+
         // Function to lock/unlock the chat
         function setChatLocked(isLocked) {
             if (isLocked) {
@@ -412,6 +425,7 @@
                 chatLockMessage.classList.add('hidden');
             }
         }
+
         // Function to show/hide chat components based on nickname status
         function updateChatUI(nickname) {
             if (nickname) {
@@ -422,25 +436,33 @@
                 chatMessages.classList.add('hidden');
             }
         }
+
         // Function to render the leaderboard
         function renderLeaderboard() {
             leaderboardList.innerHTML = '';
+            
             // Filter out users who have chosen to be private
             const publicUsers = Object.fromEntries(
                 Object.entries(allUsersData).filter(([, userData]) => !userData.private)
             );
+
             // Convert public users object to array for sorting
             const sortedUsers = Object.entries(publicUsers).sort(([, a], [, b]) => (b.count || 0) - (a.count || 0));
+
             const hideInactive = hideInactiveCheckbox.checked;
+
             sortedUsers.forEach(([userId, userData], index) => {
                 const isUserActive = activeUsers.hasOwnProperty(userId);
+                
                 if (hideInactive && !isUserActive) {
                     return;
                 }
+
                 const listItem = document.createElement('li');
                 const nickname = userData.nickname || "Anonymous";
                 const status = isUserActive ? "Active" : "Inactive";
                 const statusColor = isUserActive ? 'text-green-600' : 'text-gray-500';
+
                 listItem.innerHTML = `
                     <span class="rank">${index + 1}.</span>
                     <div class="user-info">
@@ -452,19 +474,23 @@
                 leaderboardList.appendChild(listItem);
             });
         }
+
         document.addEventListener('DOMContentLoaded', async () => {
             setLoading(true);
             clickCountDisplay.textContent = 'Connecting...';
             activeUsersDisplay.textContent = 'Connecting...';
+
             try {
                 const app = initializeApp(firebaseConfig);
                 const auth = getAuth(app);
                 const db = getDatabase(app);
+
                 // Sign in anonymously
                 await signInAnonymously(auth);
                 const user = auth.currentUser;
                 currentUserId = user.uid;
                 userIdDisplay.textContent = currentUserId;
+
                 // Realtime Database references
                 const globalCountRef = ref(db, 'global_count');
                 const usersRef = ref(db, 'active_users');
@@ -475,9 +501,11 @@
                 const userPrivateRef = ref(db, `users/${currentUserId}/private`);
                 const messagesRef = ref(db, 'messages');
                 const chatLockedRef = ref(db, 'chatlocked');
+
                 // Set user presence
                 onDisconnect(userRef).remove();
                 set(userRef, true);
+
                 // Load nickname from database
                 onValue(userNicknameRef, (snapshot) => {
                     const nickname = snapshot.val();
@@ -485,28 +513,26 @@
                     nicknameInput.value = nickname || '';
                     updateChatUI(userNickname);
                 });
+
                 // Load user privacy setting
                 onValue(userPrivateRef, (snapshot) => {
                     hideMeCheckbox.checked = snapshot.val() === true;
                 });
+
                 // Listener for global click count
-                let initialLoadComplete = false;
                 onValue(globalCountRef, (snapshot) => {
                     let count = 0;
                     if (snapshot.exists()) {
                         count = snapshot.val().count || 0;
                     }
                     globalClickCount = count;
-                    if (!initialLoadComplete) {
-                        clickCountDisplay.textContent = globalClickCount.toLocaleString();
-                        setLoading(false);
-                        initialLoadComplete = true;
-                    }
+                    clickCountDisplay.textContent = globalClickCount.toLocaleString();
+                    
                 }, (error) => {
                     console.error("Error listening to global count:", error);
                     clickCountDisplay.textContent = 'Data Error';
-                    setLoading(false);
                 });
+
                 // Listener for active users count
                 onValue(usersRef, (snapshot) => {
                     activeUsers = snapshot.val() || {};
@@ -517,6 +543,7 @@
                     console.error("Error listening to active users:", error);
                     activeUsersDisplay.textContent = 'Error';
                 });
+
                 // Listener for all user data (for leaderboard)
                 onValue(allUsersRef, (snapshot) => {
                     allUsersData = snapshot.val() || {};
@@ -527,6 +554,7 @@
                 }, (error) => {
                     console.error("Error listening to all users data:", error);
                 });
+
                 // Listener for locked status
                 onValue(lockedRef, (snapshot) => {
                     const isLocked = snapshot.val() === true;
@@ -534,6 +562,7 @@
                 }, (error) => {
                     console.error("Error listening to locked status:", error);
                 });
+
                 // Listener for chat messages
                 onValue(messagesRef, (snapshot) => {
                     chatMessages.innerHTML = '';
@@ -550,6 +579,7 @@
                 }, (error) => {
                     console.error("Error listening to messages:", error);
                 });
+
                 // Listener for chat locked status
                 onValue(chatLockedRef, (snapshot) => {
                     const isChatLocked = snapshot.val() === true;
@@ -557,10 +587,13 @@
                 }, (error) => {
                     console.error("Error listening to chat locked status:", error);
                 });
+                setLoading(false);
+
                 button.addEventListener('click', async (event) => {
                     if (button.disabled) {
                         return;
                     }
+
                     const existingRipple = button.querySelector('.ripple');
                     if (existingRipple) {
                         existingRipple.remove();
@@ -575,20 +608,24 @@
                     ripple.style.left = `${x - size / 2}px`;
                     ripple.style.top = `${y - size / 2}px`;
                     button.appendChild(ripple);
+                    
                     // Optimistic UI update: increment count locally
                     globalClickCount++;
                     userClickCount++;
                     clickCountDisplay.textContent = globalClickCount.toLocaleString();
+
                     // Now perform the transaction in the background
                     runTransaction(ref(db, '/'), (currentData) => {
                         if (!currentData) {
                             currentData = {};
                         }
+                        
                         // Increment global count
                         if (!currentData.global_count) {
                             currentData.global_count = { count: 0 };
                         }
                         currentData.global_count.count = (currentData.global_count.count || 0) + 1;
+
                         // Increment user's count
                         if (!currentData.users) {
                             currentData.users = {};
@@ -597,6 +634,7 @@
                             currentData.users[currentUserId] = { count: 0 };
                         }
                         currentData.users[currentUserId].count = (currentData.users[currentUserId].count || 0) + 1;
+                        
                         return currentData;
                     }).catch(error => {
                         console.error("Transaction failed:", error);
@@ -606,6 +644,7 @@
                         clickCountDisplay.textContent = globalClickCount.toLocaleString();
                     });
                 });
+
                 chatToggleButton.addEventListener('click', () => {
                     isChatOpen = !isChatOpen;
                     if (isChatOpen) {
@@ -617,6 +656,7 @@
                         chatContainer.classList.add('hidden');
                     }
                 });
+
                 saveNicknameButton.addEventListener('click', () => {
                     const nickname = nicknameInput.value.trim();
                     if (nickname.length >= 3 && nickname.length <= 25) {
@@ -632,18 +672,22 @@
                         showAlert("Nickname must be between 3 and 25 characters.");
                     }
                 });
+                
                 messageInput.addEventListener('keypress', (event) => {
                     if (event.key === 'Enter') {
                         sendMessageButton.click();
                     }
                 });
+
                 sendMessageButton.addEventListener('click', () => {
                     const message = messageInput.value.trim();
                     const nickname = nicknameInput.value.trim();
+
                     if (!nickname || nickname.length < 3 || nickname.length > 25) {
                         showAlert("Please save a valid nickname (3-25 characters) before sending a message.");
                         return;
                     }
+
                     if (message.length > 0 && message.length <= 500) {
                         push(messagesRef, {
                             nickname: userNickname,
@@ -661,15 +705,19 @@
                         showAlert("Message cannot exceed 500 characters.");
                     }
                 });
+
                 // Leaderboard button and modal
                 leaderboardButton.addEventListener('click', () => {
                     leaderboardModal.classList.remove('hidden');
                     renderLeaderboard();
                 });
+
                 closeModalButton.addEventListener('click', () => {
                     leaderboardModal.classList.add('hidden');
                 });
+
                 hideInactiveCheckbox.addEventListener('change', renderLeaderboard);
+                
                 hideMeCheckbox.addEventListener('change', (event) => {
                     set(userPrivateRef, event.target.checked).then(() => {
                         renderLeaderboard();
@@ -679,11 +727,13 @@
                         showAlert("Error updating privacy setting. Please try again.");
                     });
                 });
+
                 window.addEventListener('click', (event) => {
                     if (event.target === leaderboardModal) {
                         leaderboardModal.classList.add('hidden');
                     }
                 });
+
             } catch (error) {
                 console.error("Error initializing Firebase:", error);
                 clickCountDisplay.textContent = 'Initialization Error';
