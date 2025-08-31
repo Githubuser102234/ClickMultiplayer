@@ -761,13 +761,13 @@
         logoutButton.addEventListener('click', () => {
             if (currentUserId) {
                 const userRef = ref(db, `active_users/${currentUserId}`);
-                // Cancel the onDisconnect listener to prevent the user from being marked active again
                 onDisconnect(userRef).cancel();
-                // Explicitly remove the user from the active users list
                 remove(userRef);
             }
             signOut(auth).then(() => {
                 showAlert("Signed out successfully!");
+                // Force a page refresh to completely reset the application state.
+                window.location.reload();
             }).catch((error) => {
                 console.error("Sign out failed:", error);
                 showAlert("Sign out failed. Please try again.");
