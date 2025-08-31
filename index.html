@@ -133,12 +133,8 @@
     <script type="module">
         // Firebase SDK imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, increment, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // Hardcoded Firebase configuration for GitHub Pages deployment
         const firebaseConfig = {
@@ -158,7 +154,7 @@
         const clickCountDisplay = document.getElementById('clickCountDisplay');
         const userIdDisplay = document.getElementById('userIdDisplay');
 
-        // Function to set the loading state
+        // Function to set the loading state of the button
         function setLoading(isLoading) {
             button.disabled = isLoading;
             if (isLoading) {
@@ -172,68 +168,44 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Set initial loading state while connecting to Firebase
+        document.addEventListener('DOMContentLoaded', async () => {
             setLoading(true);
             clickCountDisplay.textContent = 'Connecting...';
 
             try {
-                // Initialize Firebase app and services
                 const app = initializeApp(firebaseConfig);
                 const auth = getAuth(app);
                 const db = getFirestore(app);
 
-                // Document reference for the global count
+                // Sign in anonymously to ensure a user exists for Firestore writes
+                await signInAnonymously(auth);
+                const user = auth.currentUser;
+                userIdDisplay.textContent = user.uid;
+
+                // Use a static app ID for GitHub Pages deployment
+                const appId = "github-clicker-app";
                 const globalCountDocRef = doc(db, `/artifacts/${appId}/public/data/click_game`, 'global_count');
 
-                // Authentication listener
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userIdDisplay.textContent = user.uid;
-                        console.log('User signed in with UID:', user.uid);
-                        
-                        // Listen for real-time updates to the global count
-                        onSnapshot(globalCountDocRef, (docSnap) => {
-                            let count = 0;
-                            if (docSnap.exists()) {
-                                count = docSnap.data().count;
-                            } else {
-                                // If the document doesn't exist, create it with a count of 0
-                                setDoc(globalCountDocRef, { count: 0 }).catch(console.error);
-                            }
-                            clickCountDisplay.textContent = count.toLocaleString();
-                            
-                            // Once data is loaded and displayed, disable the loading state
-                            setLoading(false);
-                        }, (error) => {
-                            console.error("Error listening to document:", error);
-                            setLoading(false);
-                        });
+                onSnapshot(globalCountDocRef, (docSnap) => {
+                    let count = 0;
+                    if (docSnap.exists()) {
+                        count = docSnap.data().count;
                     } else {
-                        // User is signed out. Attempt to sign in.
-                        console.log('User not authenticated, signing in...');
-                        try {
-                            if (initialAuthToken) {
-                                await signInWithCustomToken(auth, initialAuthToken);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
-                        } catch (error) {
-                            console.error('Authentication failed:', error);
-                            clickCountDisplay.textContent = 'Auth Error';
-                            setLoading(false);
-                        }
+                        setDoc(globalCountDocRef, { count: 0 }).catch(console.error);
                     }
+                    clickCountDisplay.textContent = count.toLocaleString();
+                    setLoading(false);
+                }, (error) => {
+                    console.error("Error listening to document:", error);
+                    clickCountDisplay.textContent = 'Data Error';
+                    setLoading(false);
                 });
 
-                // Add event listener for the button click
                 button.addEventListener('click', (event) => {
-                    // Prevent clicks if the button is in a loading state
                     if (button.disabled) {
                         return;
                     }
 
-                    // Add the ripple effect
                     const existingRipple = button.querySelector('.ripple');
                     if (existingRipple) {
                         existingRipple.remove();
@@ -248,21 +220,19 @@
                     ripple.style.left = `${x - size / 2}px`;
                     ripple.style.top = `${y - size / 2}px`;
                     button.appendChild(ripple);
-
-                    // Set button to loading state
-                    setLoading(true);
                     
-                    // Increment the count in Firestore
+                    setLoading(true);
+
                     updateDoc(globalCountDocRef, {
                         count: increment(1)
                     }).catch(error => {
                         console.error("Error updating document:", error);
-                        setLoading(false); // Revert loading state on error
+                        setLoading(false);
                     });
                 });
             } catch (error) {
                 console.error("Error initializing Firebase:", error);
-                clickCountDisplay.textContent = 'Error';
+                clickCountDisplay.textContent = 'Initialization Error';
                 setLoading(false);
             }
         });
