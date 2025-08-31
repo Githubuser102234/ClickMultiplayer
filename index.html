@@ -119,12 +119,10 @@
             <div id="spinner" class="spinner"></div>
         </button>
 
-        <!-- Click Count Display -->
         <div class="mt-8">
             <p class="text-gray-700 text-lg font-medium">Click Count: <span id="clickCountDisplay" class="font-bold text-green-600">Loading...</span></p>
         </div>
 
-        <!-- User ID display for debugging and collaboration -->
         <div class="mt-4 text-xs text-gray-500">
             User ID: <span id="userIdDisplay">Loading...</span>
         </div>
@@ -194,14 +192,14 @@
                         setDoc(globalCountDocRef, { count: 0 }).catch(console.error);
                     }
                     clickCountDisplay.textContent = count.toLocaleString();
-                    setLoading(false);
                 }, (error) => {
                     console.error("Error listening to document:", error);
                     clickCountDisplay.textContent = 'Data Error';
-                    setLoading(false);
                 });
 
-                button.addEventListener('click', (event) => {
+                setLoading(false); // End initial loading state here
+
+                button.addEventListener('click', async (event) => {
                     if (button.disabled) {
                         return;
                     }
@@ -223,12 +221,15 @@
                     
                     setLoading(true);
 
-                    updateDoc(globalCountDocRef, {
-                        count: increment(1)
-                    }).catch(error => {
+                    try {
+                        await updateDoc(globalCountDocRef, {
+                            count: increment(1)
+                        });
+                    } catch (error) {
                         console.error("Error updating document:", error);
+                    } finally {
                         setLoading(false);
-                    });
+                    }
                 });
             } catch (error) {
                 console.error("Error initializing Firebase:", error);
