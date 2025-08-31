@@ -340,7 +340,7 @@
         </div>
 
         <div class="mt-4 text-xs text-gray-500">
-            User ID: <span id="userIdDisplay">Loading...</span>
+            User ID: <span id="userIdDisplay">Not signed in</span>
         </div>
         
         <button id="logoutButton" class="auth-button anonymous-button mt-4 hidden">Log Out</button>
@@ -369,7 +369,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
         import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
-        import { getDatabase, ref, onValue, runTransaction, set, onDisconnect, push } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+        import { getDatabase, ref, onValue, runTransaction, set, onDisconnect, push, remove } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyArcFy4YmV6TnG3FCXkkPQhThNaOneQEcg",
@@ -420,7 +420,6 @@
         let allUsersData = {};
         let activeUsers = {};
         let currentUserId = null;
-        let unsubscribeUserRef = null;
         let unsubscribeGlobalCount = null;
         let unsubscribeActiveUsers = null;
         let unsubscribeAllUsers = null;
@@ -555,6 +554,7 @@
                 const messagesRef = ref(db, 'messages');
                 const chatLockedRef = ref(db, 'chatlocked');
 
+                // Set user presence and ensure it's removed on disconnect
                 onDisconnect(userRef).remove();
                 set(userRef, true);
 
@@ -759,14 +759,15 @@
         });
 
         logoutButton.addEventListener('click', () => {
+            if (currentUserId) {
+                const userRef = ref(db, `active_users/${currentUserId}`);
+                // Cancel the onDisconnect listener to prevent the user from being marked active again
+                onDisconnect(userRef).cancel();
+                // Explicitly remove the user from the active users list
+                remove(userRef);
+            }
             signOut(auth).then(() => {
                 showAlert("Signed out successfully!");
-                // Clean up onDisconnect listeners
-                if (currentUserId) {
-                    const userRef = ref(db, `active_users/${currentUserId}`);
-                    onDisconnect(userRef).cancel();
-                    userRef.remove();
-                }
             }).catch((error) => {
                 console.error("Sign out failed:", error);
                 showAlert("Sign out failed. Please try again.");
