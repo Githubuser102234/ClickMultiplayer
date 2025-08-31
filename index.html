@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Global Clicker Game</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,6 +16,9 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10+ */
+            user-select: none; /* Standard syntax */
         }
         .container {
             text-align: center;
@@ -123,6 +126,10 @@
             <p class="text-gray-700 text-lg font-medium">Click Count: <span id="clickCountDisplay" class="font-bold text-green-600">Loading...</span></p>
         </div>
 
+        <div class="mt-4">
+            <p class="text-gray-700 text-lg font-medium">Active Users: <span id="activeUsersDisplay" class="font-bold text-blue-600">Loading...</span></p>
+        </div>
+
         <div class="mt-4 text-xs text-gray-500">
             User ID: <span id="userIdDisplay">Loading...</span>
         </div>
@@ -132,7 +139,7 @@
         // Firebase SDK imports for Realtime Database
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
-        import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+        import { getDatabase, ref, onValue, runTransaction, set, onDisconnect } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -151,6 +158,7 @@
         const buttonText = document.getElementById('buttonText');
         const spinner = document.getElementById('spinner');
         const clickCountDisplay = document.getElementById('clickCountDisplay');
+        const activeUsersDisplay = document.getElementById('activeUsersDisplay');
         const userIdDisplay = document.getElementById('userIdDisplay');
 
         // Function to set the loading state of the button
@@ -170,31 +178,49 @@
         document.addEventListener('DOMContentLoaded', async () => {
             setLoading(true);
             clickCountDisplay.textContent = 'Connecting...';
+            activeUsersDisplay.textContent = 'Connecting...';
 
             try {
                 const app = initializeApp(firebaseConfig);
                 const auth = getAuth(app);
                 const db = getDatabase(app);
 
-                // Sign in anonymously to ensure a user exists for writes
+                // Sign in anonymously
                 await signInAnonymously(auth);
                 const user = auth.currentUser;
                 userIdDisplay.textContent = user.uid;
 
+                // Realtime Database references
                 const globalCountRef = ref(db, 'global_count');
-                
-                // Realtime Database listener
+                const usersRef = ref(db, 'active_users');
+                const userRef = ref(db, `active_users/${user.uid}`);
+
+                // Set user presence
+                onDisconnect(userRef).remove();
+                set(userRef, true);
+
+                // Listener for global click count
                 onValue(globalCountRef, (snapshot) => {
                     let count = 0;
                     if (snapshot.exists()) {
-                        count = snapshot.val().count;
+                        count = snapshot.val().count || 0;
                     }
                     clickCountDisplay.textContent = count.toLocaleString();
                     setLoading(false);
                 }, (error) => {
-                    console.error("Error listening to database:", error);
+                    console.error("Error listening to global count:", error);
                     clickCountDisplay.textContent = 'Data Error';
                     setLoading(false);
+                });
+
+                // Listener for active users count
+                onValue(usersRef, (snapshot) => {
+                    const users = snapshot.val();
+                    const count = users ? Object.keys(users).length : 0;
+                    activeUsersDisplay.textContent = count;
+                }, (error) => {
+                    console.error("Error listening to active users:", error);
+                    activeUsersDisplay.textContent = 'Error';
                 });
 
                 button.addEventListener('click', async (event) => {
@@ -237,6 +263,7 @@
             } catch (error) {
                 console.error("Error initializing Firebase:", error);
                 clickCountDisplay.textContent = 'Initialization Error';
+                activeUsersDisplay.textContent = 'Initialization Error';
                 setLoading(false);
             }
         });
