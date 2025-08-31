@@ -80,7 +80,7 @@
 
         .android-button.locked:active {
             transform: none;
-            box-shadow: 0 4-px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         /* Loading State */
@@ -362,8 +362,6 @@
         let allUsersData = {};
         let activeUsers = {};
         let currentUserId = null;
-        let globalClickCount = 0;
-        let userClickCount = 0;
 
         // Function to display on-screen alerts
         function showAlert(message) {
@@ -441,21 +439,25 @@
         function renderLeaderboard() {
             leaderboardList.innerHTML = '';
             
-            // Filter out users who have chosen to be private
-            const publicUsers = Object.fromEntries(
-                Object.entries(allUsersData).filter(([, userData]) => !userData.private)
-            );
-
-            // Convert public users object to array for sorting
-            const sortedUsers = Object.entries(publicUsers).sort(([, a], [, b]) => (b.count || 0) - (a.count || 0));
+            const sortedUsers = Object.entries(allUsersData).sort(([, a], [, b]) => (b.count || 0) - (a.count || 0));
 
             const hideInactive = hideInactiveCheckbox.checked;
+            const hideMe = hideMeCheckbox.checked;
+            
+            let rank = 1;
+            sortedUsers.forEach(([userId, userData]) => {
+                if (hideMe && userId === currentUserId) {
+                    return;
+                }
 
-            sortedUsers.forEach(([userId, userData], index) => {
                 const isUserActive = activeUsers.hasOwnProperty(userId);
                 
                 if (hideInactive && !isUserActive) {
                     return;
+                }
+
+                if (userData.private && userId !== currentUserId) {
+                    return; // Skip private users unless it's me
                 }
 
                 const listItem = document.createElement('li');
@@ -464,7 +466,7 @@
                 const statusColor = isUserActive ? 'text-green-600' : 'text-gray-500';
 
                 listItem.innerHTML = `
-                    <span class="rank">${index + 1}.</span>
+                    <span class="rank">${rank}.</span>
                     <div class="user-info">
                         <span class="user-name">${nickname}</span>
                         <span class="user-status ${statusColor}">${userId === currentUserId ? ' - You' : ''} - ${status}</span>
@@ -472,6 +474,7 @@
                     <span class="click-count">${(userData.count || 0).toLocaleString()}</span>
                 `;
                 leaderboardList.appendChild(listItem);
+                rank++;
             });
         }
 
@@ -492,11 +495,12 @@
                 userIdDisplay.textContent = currentUserId;
 
                 // Realtime Database references
-                const globalCountRef = ref(db, 'global_count');
+                const globalCountRef = ref(db, 'global_count/count');
                 const usersRef = ref(db, 'active_users');
                 const userRef = ref(db, `active_users/${currentUserId}`);
                 const lockedRef = ref(db, 'locked');
                 const allUsersRef = ref(db, `users`);
+                const userSpecificCountRef = ref(db, `users/${currentUserId}/count`);
                 const userNicknameRef = ref(db, `users/${currentUserId}/nickname`);
                 const userPrivateRef = ref(db, `users/${currentUserId}/private`);
                 const messagesRef = ref(db, 'messages');
@@ -521,12 +525,8 @@
 
                 // Listener for global click count
                 onValue(globalCountRef, (snapshot) => {
-                    let count = 0;
-                    if (snapshot.exists()) {
-                        count = snapshot.val().count || 0;
-                    }
-                    globalClickCount = count;
-                    clickCountDisplay.textContent = globalClickCount.toLocaleString();
+                    const count = snapshot.val() || 0;
+                    clickCountDisplay.textContent = count.toLocaleString();
                     setLoading(false);
                 }, (error) => {
                     console.error("Error listening to global count:", error);
@@ -548,9 +548,6 @@
                 // Listener for all user data (for leaderboard)
                 onValue(allUsersRef, (snapshot) => {
                     allUsersData = snapshot.val() || {};
-                    if (allUsersData[currentUserId]) {
-                        userClickCount = allUsersData[currentUserId].count || 0;
-                    }
                     renderLeaderboard();
                 }, (error) => {
                     console.error("Error listening to all users data:", error);
@@ -609,39 +606,17 @@
                     ripple.style.top = `${y - size / 2}px`;
                     button.appendChild(ripple);
                     
-                    // Optimistic UI update: increment count locally
-                    globalClickCount++;
-                    userClickCount++;
-                    clickCountDisplay.textContent = globalClickCount.toLocaleString();
-
-                    // Now perform the transaction in the background
-                    runTransaction(ref(db, '/'), (currentData) => {
-                        if (!currentData) {
-                            currentData = {};
-                        }
-                        
-                        // Increment global count
-                        if (!currentData.global_count) {
-                            currentData.global_count = { count: 0 };
-                        }
-                        currentData.global_count.count = (currentData.global_count.count || 0) + 1;
-
-                        // Increment user's count
-                        if (!currentData.users) {
-                            currentData.users = {};
-                        }
-                        if (!currentData.users[currentUserId]) {
-                            currentData.users[currentUserId] = { count: 0 };
-                        }
-                        currentData.users[currentUserId].count = (currentData.users[currentUserId].count || 0) + 1;
-                        
-                        return currentData;
+                    // The core fix: use separate, targeted transactions
+                    runTransaction(globalCountRef, (currentCount) => {
+                        return (currentCount || 0) + 1;
                     }).catch(error => {
-                        console.error("Transaction failed:", error);
-                        // If transaction fails, revert the local count
-                        globalClickCount--;
-                        userClickCount--;
-                        clickCountDisplay.textContent = globalClickCount.toLocaleString();
+                        console.error("Global count transaction failed:", error);
+                    });
+
+                    runTransaction(userSpecificCountRef, (currentCount) => {
+                        return (currentCount || 0) + 1;
+                    }).catch(error => {
+                        console.error("User count transaction failed:", error);
                     });
                 });
 
