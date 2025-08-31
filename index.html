@@ -134,13 +134,23 @@
         // Firebase SDK imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, setDoc, increment, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables provided by the environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
+        // Hardcoded Firebase configuration for GitHub Pages deployment
+        const firebaseConfig = {
+            apiKey: "AIzaSyArcFy4YmV6TnG3FCXkkPQhThNaOneQEcg",
+            authDomain: "clickmultiplayer.firebaseapp.com",
+            projectId: "clickmultiplayer",
+            storageBucket: "clickmultiplayer.firebasestorage.app",
+            messagingSenderId: "677595330762",
+            appId: "1:677595330762:web:12c5256ddc8e1d83291c33",
+            measurementId: "G-5XDMJTGS4R"
+        };
+        
         // UI elements
         const button = document.getElementById('clickButton');
         const buttonText = document.getElementById('buttonText');
@@ -165,7 +175,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Set initial loading state while connecting to Firebase
             setLoading(true);
-            clickCountDisplay.textContent = 'Loading...';
+            clickCountDisplay.textContent = 'Connecting...';
 
             try {
                 // Initialize Firebase app and services
