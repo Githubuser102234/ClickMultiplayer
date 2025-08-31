@@ -91,7 +91,7 @@
         }
         .android-button.loading:hover {
             transform: none;
-            box-shadow: 2px 4-px rgba(0, 0, 0, 0.1);
+            box-shadow: 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         /* Spinner CSS */
@@ -402,19 +402,19 @@
         function renderLeaderboard() {
             leaderboardList.innerHTML = '';
             
-            // Convert users object to array for sorting
-            const sortedUsers = Object.entries(allUsersData).sort(([, a], [, b]) => (b.count || 0) - (a.count || 0));
+            // Filter out users who have chosen to be private
+            const publicUsers = Object.fromEntries(
+                Object.entries(allUsersData).filter(([, userData]) => !userData.private)
+            );
+
+            // Convert public users object to array for sorting
+            const sortedUsers = Object.entries(publicUsers).sort(([, a], [, b]) => (b.count || 0) - (a.count || 0));
 
             const hideInactive = hideInactiveCheckbox.checked;
-            const hideMe = hideMeCheckbox.checked;
 
             sortedUsers.forEach(([userId, userData], index) => {
                 const isUserActive = activeUsers.hasOwnProperty(userId);
-                const isMe = userId === currentUserId;
-
-                if (hideMe && isMe) {
-                    return;
-                }
+                
                 if (hideInactive && !isUserActive) {
                     return;
                 }
@@ -428,7 +428,7 @@
                     <span class="rank">${index + 1}.</span>
                     <div class="user-info">
                         <span class="user-name">${nickname}</span>
-                        <span class="user-status ${statusColor}">${isMe ? ' - You' : ''} - ${status}</span>
+                        <span class="user-status ${statusColor}">${userId === currentUserId ? ' - You' : ''} - ${status}</span>
                     </div>
                     <span class="click-count">${(userData.count || 0).toLocaleString()}</span>
                 `;
@@ -459,6 +459,7 @@
                 const lockedRef = ref(db, 'locked');
                 const allUsersRef = ref(db, `users`);
                 const userNicknameRef = ref(db, `users/${currentUserId}/nickname`);
+                const userPrivateRef = ref(db, `users/${currentUserId}/private`);
                 const messagesRef = ref(db, 'messages');
                 const chatLockedRef = ref(db, 'chatlocked');
 
@@ -472,6 +473,11 @@
                     userNickname = nickname;
                     nicknameInput.value = nickname || '';
                     updateChatUI(userNickname);
+                });
+
+                // Load user privacy setting
+                onValue(userPrivateRef, (snapshot) => {
+                    hideMeCheckbox.checked = snapshot.val() === true;
                 });
 
                 // Listener for global click count
@@ -562,8 +568,33 @@
                     
                     setLoading(true);
 
-                    runTransaction(ref(db, `users/${currentUserId}/count`), (currentCount) => {
-                        return (currentCount || 0) + 1;
+                    // Use a transaction for both global and user-specific clicks
+                    runTransaction(ref(db, '/'), (currentData) => {
+                        if (!currentData) {
+                            return {
+                                global_count: { count: 1 },
+                                users: {
+                                    [currentUserId]: { count: 1 }
+                                }
+                            };
+                        }
+                        
+                        // Increment global count
+                        if (!currentData.global_count) {
+                            currentData.global_count = { count: 0 };
+                        }
+                        currentData.global_count.count = (currentData.global_count.count || 0) + 1;
+
+                        // Increment user's count
+                        if (!currentData.users) {
+                            currentData.users = {};
+                        }
+                        if (!currentData.users[currentUserId]) {
+                            currentData.users[currentUserId] = { count: 0 };
+                        }
+                        currentData.users[currentUserId].count = (currentData.users[currentUserId].count || 0) + 1;
+                        
+                        return currentData;
                     }).then(() => {
                         setLoading(false);
                     }).catch(error => {
@@ -642,7 +673,15 @@
                 });
 
                 hideInactiveCheckbox.addEventListener('change', renderLeaderboard);
-                hideMeCheckbox.addEventListener('change', renderLeaderboard);
+                
+                hideMeCheckbox.addEventListener('change', (event) => {
+                    set(userPrivateRef, event.target.checked).then(() => {
+                        renderLeaderboard();
+                        console.log("Privacy setting updated successfully!");
+                    }).catch((error) => {
+                        console.error("Error updating privacy setting:", error);
+                    });
+                });
 
                 window.addEventListener('click', (event) => {
                     if (event.target === leaderboardModal) {
