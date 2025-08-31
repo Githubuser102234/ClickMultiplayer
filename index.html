@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Global Clicker Game</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -377,7 +377,7 @@
                         messageElement.innerHTML = `<span class="chat-nickname">${message.nickname}:</span> <span class="chat-text">${message.text}</span>`;
                         chatMessages.appendChild(messageElement);
                     });
-                    if (isChatOpen) {
+                    if (isChatOpen && userNickname) {
                         chatMessages.scrollTop = chatMessages.scrollHeight;
                     }
                 }, (error) => {
@@ -464,7 +464,9 @@
 
                 sendMessageButton.addEventListener('click', () => {
                     const message = messageInput.value.trim();
-                    if (!userNickname || userNickname.length < 3) {
+                    const nickname = nicknameInput.value.trim();
+
+                    if (!nickname || nickname.length < 3 || nickname.length > 25) {
                         alert("Please save a valid nickname (3-25 characters) before sending a message.");
                         return;
                     }
