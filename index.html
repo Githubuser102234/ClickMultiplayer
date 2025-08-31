@@ -229,6 +229,25 @@
             font-weight: bold;
             color: #4CAF50;
         }
+
+        /* Alert Box Styles */
+        #alertBox {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            z-index: 2000;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #alertBox.show {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -293,6 +312,8 @@
         </div>
     </div>
 
+    <div id="alertBox" class="hidden"></div>
+
     <script type="module">
         // Firebase SDK imports for Realtime Database
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
@@ -334,12 +355,28 @@
         const leaderboardList = document.getElementById('leaderboardList');
         const hideInactiveCheckbox = document.getElementById('hideInactiveCheckbox');
         const hideMeCheckbox = document.getElementById('hideMeCheckbox');
+        const alertBox = document.getElementById('alertBox');
 
         let userNickname = null;
         let isChatOpen = false;
         let allUsersData = {};
         let activeUsers = {};
         let currentUserId = null;
+
+        // Function to display on-screen alerts
+        function showAlert(message) {
+            alertBox.textContent = message;
+            alertBox.classList.remove('hidden');
+            setTimeout(() => {
+                alertBox.classList.add('show');
+            }, 10); // Short delay to trigger the transition
+            setTimeout(() => {
+                alertBox.classList.remove('show');
+                setTimeout(() => {
+                    alertBox.classList.add('hidden');
+                }, 300); // Wait for fade-out transition
+            }, 3000);
+        }
 
         // Function to set the loading state of the button
         function setLoading(isLoading) {
@@ -571,12 +608,7 @@
                     // Use a transaction for both global and user-specific clicks
                     runTransaction(ref(db, '/'), (currentData) => {
                         if (!currentData) {
-                            return {
-                                global_count: { count: 1 },
-                                users: {
-                                    [currentUserId]: { count: 1 }
-                                }
-                            };
+                            currentData = {};
                         }
                         
                         // Increment global count
@@ -621,12 +653,13 @@
                         set(userNicknameRef, nickname).then(() => {
                             userNickname = nickname;
                             updateChatUI(userNickname);
-                            console.log("Nickname saved successfully!");
+                            showAlert("Nickname saved successfully!");
                         }).catch((error) => {
                             console.error("Error updating nickname:", error);
+                            showAlert("Error saving nickname. Please try again.");
                         });
                     } else {
-                        alert("Nickname must be between 3 and 25 characters.");
+                        showAlert("Nickname must be between 3 and 25 characters.");
                     }
                 });
                 
@@ -641,7 +674,7 @@
                     const nickname = nicknameInput.value.trim();
 
                     if (!nickname || nickname.length < 3 || nickname.length > 25) {
-                        alert("Please save a valid nickname (3-25 characters) before sending a message.");
+                        showAlert("Please save a valid nickname (3-25 characters) before sending a message.");
                         return;
                     }
 
@@ -654,11 +687,12 @@
                             messageInput.value = '';
                         }).catch((error) => {
                             console.error("Error sending message:", error);
+                            showAlert("Error sending message. Please try again.");
                         });
                     } else if (message.length === 0) {
-                        alert("Please enter a message to send.");
+                        showAlert("Please enter a message to send.");
                     } else if (message.length > 500) {
-                        alert("Message cannot exceed 500 characters.");
+                        showAlert("Message cannot exceed 500 characters.");
                     }
                 });
 
@@ -677,9 +711,10 @@
                 hideMeCheckbox.addEventListener('change', (event) => {
                     set(userPrivateRef, event.target.checked).then(() => {
                         renderLeaderboard();
-                        console.log("Privacy setting updated successfully!");
+                        showAlert("Privacy setting updated.");
                     }).catch((error) => {
                         console.error("Error updating privacy setting:", error);
+                        showAlert("Error updating privacy setting. Please try again.");
                     });
                 });
 
