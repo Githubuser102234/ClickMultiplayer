@@ -188,7 +188,7 @@
                     <button id="saveNicknameButton" class="px-4 py-2 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Save</button>
                 </div>
             </div>
-            <div id="chatMessages"></div>
+            <div id="chatMessages" class="hidden"></div>
             <div id="chatInputArea" class="hidden">
                 <div class="flex mt-2">
                     <input type="text" id="messageInput" placeholder="Send a message..." maxlength="500" class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
@@ -288,6 +288,17 @@
             }
         }
 
+        // Function to show/hide chat components based on nickname status
+        function updateChatUI(nickname) {
+            if (nickname) {
+                chatInputArea.classList.remove('hidden');
+                chatMessages.classList.remove('hidden');
+            } else {
+                chatInputArea.classList.add('hidden');
+                chatMessages.classList.add('hidden');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             setLoading(true);
             clickCountDisplay.textContent = 'Connecting...';
@@ -319,14 +330,10 @@
                 // Load nickname from database
                 onValue(userNicknameRef, (snapshot) => {
                     const nickname = snapshot.val();
-                    if (nickname) {
-                        userNickname = nickname;
-                        nicknameInput.value = nickname;
-                        chatInputArea.classList.remove('hidden');
-                    } else {
-                        chatInputArea.classList.add('hidden');
-                    }
-                }, { onlyOnce: false });
+                    userNickname = nickname;
+                    nicknameInput.value = nickname || '';
+                    updateChatUI(userNickname);
+                });
 
                 // Listener for global click count
                 onValue(globalCountRef, (snapshot) => {
@@ -370,7 +377,9 @@
                         messageElement.innerHTML = `<span class="chat-nickname">${message.nickname}:</span> <span class="chat-text">${message.text}</span>`;
                         chatMessages.appendChild(messageElement);
                     });
-                    chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to bottom
+                    if (isChatOpen) {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
                 }, (error) => {
                     console.error("Error listening to messages:", error);
                 });
@@ -405,7 +414,6 @@
                     
                     setLoading(true);
 
-                    // Use a transaction for safe incrementing
                     runTransaction(globalCountRef, (currentData) => {
                         if (currentData === null) {
                             return { count: 1 };
@@ -425,6 +433,9 @@
                     isChatOpen = !isChatOpen;
                     if (isChatOpen) {
                         chatContainer.classList.remove('hidden');
+                        if (userNickname) {
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
                     } else {
                         chatContainer.classList.add('hidden');
                     }
@@ -435,7 +446,7 @@
                     if (nickname.length >= 3 && nickname.length <= 25) {
                         set(userNicknameRef, nickname).then(() => {
                             userNickname = nickname;
-                            chatInputArea.classList.remove('hidden');
+                            updateChatUI(userNickname);
                             console.log("Nickname saved successfully!");
                         }).catch((error) => {
                             console.error("Error updating nickname:", error);
@@ -444,7 +455,7 @@
                         alert("Nickname must be between 3 and 25 characters.");
                     }
                 });
-
+                
                 messageInput.addEventListener('keypress', (event) => {
                     if (event.key === 'Enter') {
                         sendMessageButton.click();
@@ -453,10 +464,8 @@
 
                 sendMessageButton.addEventListener('click', () => {
                     const message = messageInput.value.trim();
-                    const nickname = nicknameInput.value.trim();
-
-                    if (!userNickname || nickname.length < 3) {
-                        alert("Please enter a valid nickname (3-25 characters) before sending a message.");
+                    if (!userNickname || userNickname.length < 3) {
+                        alert("Please save a valid nickname (3-25 characters) before sending a message.");
                         return;
                     }
 
@@ -466,7 +475,7 @@
                             text: message,
                             timestamp: Date.now()
                         }).then(() => {
-                            messageInput.value = ''; // Clear input field
+                            messageInput.value = '';
                         }).catch((error) => {
                             console.error("Error sending message:", error);
                         });
