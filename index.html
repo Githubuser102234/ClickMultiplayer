@@ -54,7 +54,7 @@
 
         .android-button:active {
             transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 2px 4px rgba(0, 0, 0, 0.1);
             background-color: #43A047;
         }
 
@@ -71,7 +71,7 @@
         }
         .android-button.loading:hover {
             transform: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         /* Spinner CSS */
@@ -129,15 +129,16 @@
     </div>
 
     <script type="module">
-        // Firebase SDK imports
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, increment, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Firebase SDK imports for Realtime Database
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
-        // Hardcoded Firebase configuration for GitHub Pages deployment
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyArcFy4YmV6TnG3FCXkkPQhThNaOneQEcg",
             authDomain: "clickmultiplayer.firebaseapp.com",
+            databaseURL: "https://clickmultiplayer-default-rtdb.firebaseio.com",
             projectId: "clickmultiplayer",
             storageBucket: "clickmultiplayer.firebasestorage.app",
             messagingSenderId: "677595330762",
@@ -167,43 +168,31 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            setLoading(true); // Initial state: button loading
+            setLoading(true);
             clickCountDisplay.textContent = 'Connecting...';
 
             try {
                 const app = initializeApp(firebaseConfig);
                 const auth = getAuth(app);
-                const db = getFirestore(app);
+                const db = getDatabase(app);
 
-                // Sign in anonymously to ensure a user exists for Firestore writes
+                // Sign in anonymously to ensure a user exists for writes
                 await signInAnonymously(auth);
                 const user = auth.currentUser;
                 userIdDisplay.textContent = user.uid;
 
-                // Use a static app ID for GitHub Pages deployment
-                const appId = "github-clicker-app";
-                const globalCountDocRef = doc(db, `/artifacts/${appId}/public/data/click_game`, 'global_count');
-
-                // Flag to track if the initial load is complete
-                let isInitialLoad = true;
-
-                onSnapshot(globalCountDocRef, (docSnap) => {
+                const globalCountRef = ref(db, 'global_count');
+                
+                // Realtime Database listener
+                onValue(globalCountRef, (snapshot) => {
                     let count = 0;
-                    if (docSnap.exists()) {
-                        count = docSnap.data().count;
-                    } else {
-                        // If document doesn't exist, create it with a count of 0
-                        setDoc(globalCountDocRef, { count: 0 }).catch(console.error);
+                    if (snapshot.exists()) {
+                        count = snapshot.val().count;
                     }
                     clickCountDisplay.textContent = count.toLocaleString();
-                    
-                    // Remove initial loading state once data is received
-                    if (isInitialLoad) {
-                        setLoading(false);
-                        isInitialLoad = false;
-                    }
+                    setLoading(false);
                 }, (error) => {
-                    console.error("Error listening to document:", error);
+                    console.error("Error listening to database:", error);
                     clickCountDisplay.textContent = 'Data Error';
                     setLoading(false);
                 });
@@ -230,15 +219,20 @@
                     
                     setLoading(true);
 
-                    try {
-                        await updateDoc(globalCountDocRef, {
-                            count: increment(1)
-                        });
-                    } catch (error) {
-                        console.error("Error updating document:", error);
-                    } finally {
+                    // Use a transaction for safe incrementing
+                    runTransaction(globalCountRef, (currentData) => {
+                        if (currentData === null) {
+                            return { count: 1 };
+                        } else {
+                            currentData.count = (currentData.count || 0) + 1;
+                            return currentData;
+                        }
+                    }).then(() => {
                         setLoading(false);
-                    }
+                    }).catch(error => {
+                        console.error("Transaction failed:", error);
+                        setLoading(false);
+                    });
                 });
             } catch (error) {
                 console.error("Error initializing Firebase:", error);
