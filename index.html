@@ -167,7 +167,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            setLoading(true);
+            setLoading(true); // Initial state: button loading
             clickCountDisplay.textContent = 'Connecting...';
 
             try {
@@ -184,20 +184,29 @@
                 const appId = "github-clicker-app";
                 const globalCountDocRef = doc(db, `/artifacts/${appId}/public/data/click_game`, 'global_count');
 
+                // Flag to track if the initial load is complete
+                let isInitialLoad = true;
+
                 onSnapshot(globalCountDocRef, (docSnap) => {
                     let count = 0;
                     if (docSnap.exists()) {
                         count = docSnap.data().count;
                     } else {
+                        // If document doesn't exist, create it with a count of 0
                         setDoc(globalCountDocRef, { count: 0 }).catch(console.error);
                     }
                     clickCountDisplay.textContent = count.toLocaleString();
+                    
+                    // Remove initial loading state once data is received
+                    if (isInitialLoad) {
+                        setLoading(false);
+                        isInitialLoad = false;
+                    }
                 }, (error) => {
                     console.error("Error listening to document:", error);
                     clickCountDisplay.textContent = 'Data Error';
+                    setLoading(false);
                 });
-
-                setLoading(false); // End initial loading state here
 
                 button.addEventListener('click', async (event) => {
                     if (button.disabled) {
