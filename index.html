@@ -80,7 +80,7 @@
 
         .android-button.locked:active {
             transform: none;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4-px 6px rgba(0, 0, 0, 0.1);
         }
 
         /* Loading State */
@@ -362,6 +362,8 @@
         let allUsersData = {};
         let activeUsers = {};
         let currentUserId = null;
+        let globalClickCount = 0;
+        let userClickCount = 0;
 
         // Function to display on-screen alerts
         function showAlert(message) {
@@ -523,7 +525,8 @@
                     if (snapshot.exists()) {
                         count = snapshot.val().count || 0;
                     }
-                    clickCountDisplay.textContent = count.toLocaleString();
+                    globalClickCount = count;
+                    clickCountDisplay.textContent = globalClickCount.toLocaleString();
                     setLoading(false);
                 }, (error) => {
                     console.error("Error listening to global count:", error);
@@ -545,6 +548,9 @@
                 // Listener for all user data (for leaderboard)
                 onValue(allUsersRef, (snapshot) => {
                     allUsersData = snapshot.val() || {};
+                    if (allUsersData[currentUserId]) {
+                        userClickCount = allUsersData[currentUserId].count || 0;
+                    }
                     renderLeaderboard();
                 }, (error) => {
                     console.error("Error listening to all users data:", error);
@@ -603,9 +609,12 @@
                     ripple.style.top = `${y - size / 2}px`;
                     button.appendChild(ripple);
                     
-                    setLoading(true);
+                    // Optimistic UI update: increment count locally
+                    globalClickCount++;
+                    userClickCount++;
+                    clickCountDisplay.textContent = globalClickCount.toLocaleString();
 
-                    // Use a transaction for both global and user-specific clicks
+                    // Now perform the transaction in the background
                     runTransaction(ref(db, '/'), (currentData) => {
                         if (!currentData) {
                             currentData = {};
@@ -627,11 +636,12 @@
                         currentData.users[currentUserId].count = (currentData.users[currentUserId].count || 0) + 1;
                         
                         return currentData;
-                    }).then(() => {
-                        setLoading(false);
                     }).catch(error => {
                         console.error("Transaction failed:", error);
-                        setLoading(false);
+                        // If transaction fails, revert the local count
+                        globalClickCount--;
+                        userClickCount--;
+                        clickCountDisplay.textContent = globalClickCount.toLocaleString();
                     });
                 });
 
