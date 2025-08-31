@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Clicker Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 90%;
+            width: 400px;
+        }
+        /* Android Style Button */
+        .android-button {
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 2rem;
+            min-width: 150px;
+            height: 52px;
+            font-weight: 500;
+            color: #ffffff;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .android-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .android-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: #43A047;
+        }
+
+        .android-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.5);
+        }
+
+        /* Loading State */
+        .android-button.loading {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+            color: transparent;
+        }
+        .android-button.loading:hover {
+            transform: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Spinner CSS */
+        .spinner {
+            display: none;
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Ripple effect CSS */
+        .ripple {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-animation 1.0s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-2xl font-bold text-gray-800 mb-4">Global Clicker Game</h1>
+        <p class="text-gray-600 mb-8">Click the button to add to the global count!</p>
+        <button class="android-button" id="clickButton">
+            <span id="buttonText">Click Me!</span>
+            <div id="spinner" class="spinner"></div>
+        </button>
+
+        <!-- Click Count Display -->
+        <div class="mt-8">
+            <p class="text-gray-700 text-lg font-medium">Click Count: <span id="clickCountDisplay" class="font-bold text-green-600">Loading...</span></p>
+        </div>
+
+        <!-- User ID display for debugging and collaboration -->
+        <div class="mt-4 text-xs text-gray-500">
+            User ID: <span id="userIdDisplay">Loading...</span>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase SDK imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // UI elements
+        const button = document.getElementById('clickButton');
+        const buttonText = document.getElementById('buttonText');
+        const spinner = document.getElementById('spinner');
+        const clickCountDisplay = document.getElementById('clickCountDisplay');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+
+        // Function to set the loading state
+        function setLoading(isLoading) {
+            button.disabled = isLoading;
+            if (isLoading) {
+                button.classList.add('loading');
+                buttonText.style.display = 'none';
+                spinner.style.display = 'block';
+            } else {
+                button.classList.remove('loading');
+                buttonText.style.display = 'block';
+                spinner.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set initial loading state while connecting to Firebase
+            setLoading(true);
+            clickCountDisplay.textContent = 'Loading...';
+
+            try {
+                // Initialize Firebase app and services
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                const db = getFirestore(app);
+
+                // Document reference for the global count
+                const globalCountDocRef = doc(db, `/artifacts/${appId}/public/data/click_game`, 'global_count');
+
+                // Authentication listener
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userIdDisplay.textContent = user.uid;
+                        console.log('User signed in with UID:', user.uid);
+                        
+                        // Listen for real-time updates to the global count
+                        onSnapshot(globalCountDocRef, (docSnap) => {
+                            let count = 0;
+                            if (docSnap.exists()) {
+                                count = docSnap.data().count;
+                            } else {
+                                // If the document doesn't exist, create it with a count of 0
+                                setDoc(globalCountDocRef, { count: 0 }).catch(console.error);
+                            }
+                            clickCountDisplay.textContent = count.toLocaleString();
+                            
+                            // Once data is loaded and displayed, disable the loading state
+                            setLoading(false);
+                        }, (error) => {
+                            console.error("Error listening to document:", error);
+                            setLoading(false);
+                        });
+                    } else {
+                        // User is signed out. Attempt to sign in.
+                        console.log('User not authenticated, signing in...');
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (error) {
+                            console.error('Authentication failed:', error);
+                            clickCountDisplay.textContent = 'Auth Error';
+                            setLoading(false);
+                        }
+                    }
+                });
+
+                // Add event listener for the button click
+                button.addEventListener('click', (event) => {
+                    // Prevent clicks if the button is in a loading state
+                    if (button.disabled) {
+                        return;
+                    }
+
+                    // Add the ripple effect
+                    const existingRipple = button.querySelector('.ripple');
+                    if (existingRipple) {
+                        existingRipple.remove();
+                    }
+                    const ripple = document.createElement('span');
+                    ripple.classList.add('ripple');
+                    const rect = button.getBoundingClientRect();
+                    const size = Math.max(rect.width, rect.height) * 1.5;
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    ripple.style.width = ripple.style.height = `${size}px`;
+                    ripple.style.left = `${x - size / 2}px`;
+                    ripple.style.top = `${y - size / 2}px`;
+                    button.appendChild(ripple);
+
+                    // Set button to loading state
+                    setLoading(true);
+                    
+                    // Increment the count in Firestore
+                    updateDoc(globalCountDocRef, {
+                        count: increment(1)
+                    }).catch(error => {
+                        console.error("Error updating document:", error);
+                        setLoading(false); // Revert loading state on error
+                    });
+                });
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                clickCountDisplay.textContent = 'Error';
+                setLoading(false);
+            }
+        });
+    </script>
+</body>
+</html>
