@@ -21,6 +21,7 @@
             user-select: none;
         }
         .container {
+            position: relative;
             text-align: center;
             padding: 2rem;
             background-color: white;
@@ -90,7 +91,7 @@
         }
         .android-button.loading:hover {
             transform: none;
-            box-shadow: 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 2px 4-px rgba(0, 0, 0, 0.1);
         }
 
         /* Spinner CSS */
@@ -158,10 +159,81 @@
             align-items: center;
             gap: 8px;
         }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 90%;
+            width: 350px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        #leaderboardList {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        #leaderboardList li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        #leaderboardList li:last-child {
+            border-bottom: none;
+        }
+        .rank {
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .user-info {
+            flex-grow: 1;
+            text-align: left;
+            margin-left: 1rem;
+        }
+        .user-name {
+            font-weight: 600;
+        }
+        .user-status {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        .click-count {
+            font-weight: bold;
+            color: #4CAF50;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <button id="leaderboardButton" class="absolute top-4 right-4 text-3xl cursor-pointer">🏆</button>
         <h1 class="text-2xl font-bold text-gray-800 mb-4">Global Clicker Game</h1>
         <p class="text-gray-600 mb-8">Click the button to add to the global count!</p>
         <p id="lockMessage" class="text-red-500 mb-2 hidden">Sorry, the global clicker is currently locked. Please check back later.</p>
@@ -203,6 +275,24 @@
         </div>
     </div>
 
+    <div id="leaderboardModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <span class="close-button" id="closeModalButton">&times;</span>
+            <h2 class="text-xl font-bold mb-4">Leaderboard</h2>
+            <div class="flex flex-col space-y-2 mb-4">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="hideInactiveCheckbox" class="form-checkbox h-4 w-4 text-green-600">
+                    <span class="text-sm text-gray-700">Hide Inactive Users</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="hideMeCheckbox" class="form-checkbox h-4 w-4 text-green-600">
+                    <span class="text-sm text-gray-700">Hide me on the leaderboard</span>
+                </label>
+            </div>
+            <ul id="leaderboardList"></ul>
+        </div>
+    </div>
+
     <script type="module">
         // Firebase SDK imports for Realtime Database
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
@@ -238,9 +328,18 @@
         const sendMessageButton = document.getElementById('sendMessageButton');
         const chatMessages = document.getElementById('chatMessages');
         const chatLockMessage = document.getElementById('chatLockMessage');
+        const leaderboardButton = document.getElementById('leaderboardButton');
+        const leaderboardModal = document.getElementById('leaderboardModal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const leaderboardList = document.getElementById('leaderboardList');
+        const hideInactiveCheckbox = document.getElementById('hideInactiveCheckbox');
+        const hideMeCheckbox = document.getElementById('hideMeCheckbox');
 
         let userNickname = null;
         let isChatOpen = false;
+        let allUsersData = {};
+        let activeUsers = {};
+        let currentUserId = null;
 
         // Function to set the loading state of the button
         function setLoading(isLoading) {
@@ -299,6 +398,44 @@
             }
         }
 
+        // Function to render the leaderboard
+        function renderLeaderboard() {
+            leaderboardList.innerHTML = '';
+            
+            // Convert users object to array for sorting
+            const sortedUsers = Object.entries(allUsersData).sort(([, a], [, b]) => (b.count || 0) - (a.count || 0));
+
+            const hideInactive = hideInactiveCheckbox.checked;
+            const hideMe = hideMeCheckbox.checked;
+
+            sortedUsers.forEach(([userId, userData], index) => {
+                const isUserActive = activeUsers.hasOwnProperty(userId);
+                const isMe = userId === currentUserId;
+
+                if (hideMe && isMe) {
+                    return;
+                }
+                if (hideInactive && !isUserActive) {
+                    return;
+                }
+
+                const listItem = document.createElement('li');
+                const nickname = userData.nickname || "Anonymous";
+                const status = isUserActive ? "Active" : "Inactive";
+                const statusColor = isUserActive ? 'text-green-600' : 'text-gray-500';
+
+                listItem.innerHTML = `
+                    <span class="rank">${index + 1}.</span>
+                    <div class="user-info">
+                        <span class="user-name">${nickname}</span>
+                        <span class="user-status ${statusColor}">${isMe ? ' - You' : ''} - ${status}</span>
+                    </div>
+                    <span class="click-count">${(userData.count || 0).toLocaleString()}</span>
+                `;
+                leaderboardList.appendChild(listItem);
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             setLoading(true);
             clickCountDisplay.textContent = 'Connecting...';
@@ -312,14 +449,16 @@
                 // Sign in anonymously
                 await signInAnonymously(auth);
                 const user = auth.currentUser;
-                userIdDisplay.textContent = user.uid;
+                currentUserId = user.uid;
+                userIdDisplay.textContent = currentUserId;
 
                 // Realtime Database references
                 const globalCountRef = ref(db, 'global_count');
                 const usersRef = ref(db, 'active_users');
-                const userRef = ref(db, `active_users/${user.uid}`);
+                const userRef = ref(db, `active_users/${currentUserId}`);
                 const lockedRef = ref(db, 'locked');
-                const userNicknameRef = ref(db, `users/${user.uid}/nickname`);
+                const allUsersRef = ref(db, `users`);
+                const userNicknameRef = ref(db, `users/${currentUserId}/nickname`);
                 const messagesRef = ref(db, 'messages');
                 const chatLockedRef = ref(db, 'chatlocked');
 
@@ -351,12 +490,21 @@
 
                 // Listener for active users count
                 onValue(usersRef, (snapshot) => {
-                    const users = snapshot.val();
-                    const count = users ? Object.keys(users).length : 0;
+                    activeUsers = snapshot.val() || {};
+                    const count = Object.keys(activeUsers).length;
                     activeUsersDisplay.textContent = count;
+                    renderLeaderboard();
                 }, (error) => {
                     console.error("Error listening to active users:", error);
                     activeUsersDisplay.textContent = 'Error';
+                });
+
+                // Listener for all user data (for leaderboard)
+                onValue(allUsersRef, (snapshot) => {
+                    allUsersData = snapshot.val() || {};
+                    renderLeaderboard();
+                }, (error) => {
+                    console.error("Error listening to all users data:", error);
                 });
 
                 // Listener for locked status
@@ -414,13 +562,8 @@
                     
                     setLoading(true);
 
-                    runTransaction(globalCountRef, (currentData) => {
-                        if (currentData === null) {
-                            return { count: 1 };
-                        } else {
-                            currentData.count = (currentData.count || 0) + 1;
-                            return currentData;
-                        }
+                    runTransaction(ref(db, `users/${currentUserId}/count`), (currentCount) => {
+                        return (currentCount || 0) + 1;
                     }).then(() => {
                         setLoading(false);
                     }).catch(error => {
@@ -485,6 +628,25 @@
                         alert("Please enter a message to send.");
                     } else if (message.length > 500) {
                         alert("Message cannot exceed 500 characters.");
+                    }
+                });
+
+                // Leaderboard button and modal
+                leaderboardButton.addEventListener('click', () => {
+                    leaderboardModal.classList.remove('hidden');
+                    renderLeaderboard();
+                });
+
+                closeModalButton.addEventListener('click', () => {
+                    leaderboardModal.classList.add('hidden');
+                });
+
+                hideInactiveCheckbox.addEventListener('change', renderLeaderboard);
+                hideMeCheckbox.addEventListener('change', renderLeaderboard);
+
+                window.addEventListener('click', (event) => {
+                    if (event.target === leaderboardModal) {
+                        leaderboardModal.classList.add('hidden');
                     }
                 });
 
