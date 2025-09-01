@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Global Clicker Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body {
+            touch-action: manipulation; /* disables double-tap zoom */
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        .container {
+            position: relative;
+            text-align: center;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 90%;
+            width: 400px;
+        }
+        /* Android Style Button */
+        .android-button {
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 2rem;
+            min-width: 150px;
+            height: 52px;
+            font-weight: 500;
+            color: #ffffff;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .android-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .android-button:active {
+            transform: translateY(0);
+            box-shadow: 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: #43A047;
+        }
+
+        .android-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.5);
+        }
+
+        /* Locked State */
+        .android-button.locked {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .android-button.locked:hover {
+            transform: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .android-button.locked:active {
+            transform: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Loading State */
+        .android-button.loading {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+            color: transparent;
+        }
+        .android-button.loading:hover {
+            transform: none;
+            box-shadow: 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Spinner CSS */
+        .spinner {
+            display: none;
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .auth-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.75rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Ripple effect CSS */
+        .ripple {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-animation 1.0s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        /* Chat styles */
+        #chatContainer {
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+        #chatMessages {
+            height: 200px;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 0.75rem;
+        }
+        .chat-message {
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        .chat-nickname {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .chat-text {
+            color: #4b5563;
+        }
+        #nicknameContainer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 90%;
+            width: 350px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        #leaderboardList {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        #leaderboardList li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        #leaderboardList li:last-child {
+            border-bottom: none;
+        }
+        .rank {
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .user-info {
+            flex-grow: 1;
+            text-align: left;
+            margin-left: 1rem;
+        }
+        .user-name {
+            font-weight: 600;
+        }
+        .user-status {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        .click-count {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        /* Alert Box Styles */
+        #alertBox {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            z-index: 2000;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #alertBox.show {
+            opacity: 1;
+        }
+
+        /* Auth button styles */
+        .auth-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #d1d5db;
+        }
+
+        .google-button {
+            background-color: #4285F4;
+            color: white;
+        }
+
+        .google-button:hover {
+            background-color: #357ae8;
+        }
+
+        .anonymous-button {
+            background-color: #e5e7eb;
+            color: #4b5563;
+        }
+
+        .anonymous-button:hover {
+            background-color: #d1d5db;
+        }
+
+        .auth-icon {
+            margin-right: 0.75rem;
+            width: 20px;
+            height: 20px;
+        }
+        .google-button .auth-icon {
+            display: block; /* Show the image by default */
+        }
+        .google-button.loading .auth-icon {
+            display: none; /* Hide the image when loading */
+        }
+        .google-button .auth-spinner {
+            display: none; /* Hide the spinner by default */
+        }
+        .google-button.loading .auth-spinner {
+            display: block; /* Show the spinner when loading */
+        }
+        
+        /* Shimmer Effect for Leaderboard */
+        .shimmer-wrapper {
+            animation: shimmer 2s infinite linear;
+            background: linear-gradient(to right, #f6f7f9 0%, #e9ebee 20%, #f6f7f9 40%);
+            background-size: 800px 104px;
+            border-radius: 0.5rem;
+        }
+        @keyframes shimmer {
+            0% {
+                background-position: -800px 0;
+            }
+            100% {
+                background-position: 800px 0;
+            }
+        }
+        .shimmer-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .shimmer-item:last-child {
+            border-bottom: none;
+        }
+        .shimmer-line {
+            height: 1rem;
+            background-color: #e5e7eb;
+            border-radius: 4px;
+        }
+        .shimmer-line.rank {
+            width: 20px;
+        }
+        .shimmer-line.user-info {
+            width: 150px;
+        }
+        .shimmer-line.click-count {
+            width: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button id="leaderboardButton" class="absolute top-4 right-4 text-3xl cursor-pointer">🏆</button>
+        <h1 class="text-2xl font-bold text-gray-800 mb-4">Global Clicker Game</h1>
+        <p class="text-gray-600 mb-8">Click the button to add to the global count!</p>
+        <p id="lockMessage" class="text-red-500 mb-2 hidden">Sorry, the global clicker is currently locked. Please check back later.</p>
+        
+        <div id="authButtons" class="mt-4 flex flex-col items-center">
+            <button id="googleSignInButton" class="auth-button google-button">
+                <div class="auth-spinner"></div>
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo" class="auth-icon">
+                Sign in with Google
+            </button>
+            <button id="anonymousSignInButton" class="auth-button anonymous-button">
+                Sign in Anonymously
+            </button>
+            <p class="text-xs text-gray-500 mt-2 max-w-xs">
+                Using anonymous sign in may result in you losing your data. If you switch devices, browsers or your browser's local storage gets cleared, you will no longer have access to your data.
+            </p>
+        </div>
+
+        <div id="gameUI" class="hidden">
+            <button class="android-button" id="clickButton">
+                <span id="buttonText">Click Me!</span>
+                <div id="spinner" class="spinner"></div>
+            </button>
+            <div class="mt-8">
+                <p class="text-gray-700 text-lg font-medium">Click Count: <span id="clickCountDisplay" class="font-bold text-green-600">Loading...</span></p>
+            </div>
+            <div class="mt-4">
+                <p class="text-gray-700 text-lg font-medium">Active Users: <span id="activeUsersDisplay" class="font-bold text-blue-600">Loading...</span></p>
+            </div>
+            <button id="chatToggleButton" class="android-button mt-4">💬</button>
+            <div id="chatContainer" class="hidden">
+                <div class="mb-4">
+                    <label for="nicknameInput" class="block text-sm font-medium text-gray-700 mb-1">Your Nickname:</label>
+                    <div id="nicknameContainer">
+                        <input type="text" id="nicknameInput" placeholder="Enter Nickname" maxlength="25" class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
+                        <button id="saveNicknameButton" class="px-4 py-2 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Save</button>
+                    </div>
+                </div>
+                <div id="chatMessages" class="hidden"></div>
+                <div id="chatInputArea" class="hidden">
+                    <div class="flex mt-2">
+                        <input type="text" id="messageInput" placeholder="Send a message..." maxlength="500" class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
+                        <button id="sendMessageButton" class="px-4 py-2 bg-green-500 text-white font-medium rounded-r-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Send</button>
+                    </div>
+                    <p id="chatLockMessage" class="text-red-500 mt-2 hidden">Sorry, chat isn't available right now. Check back later.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 text-xs text-gray-500">
+            User ID: <span id="userIdDisplay">Not signed in</span>
+        </div>
+        
+        <button id="logoutButton" class="auth-button anonymous-button mt-4 hidden">Log Out</button>
+    </div>
+
+    <div id="leaderboardModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <span class="close-button" id="closeModalButton">&times;</span>
+            <h2 class="text-xl font-bold mb-4">Leaderboard</h2>
+            <div class="flex flex-col space-y-2 mb-4">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="hideInactiveCheckbox" class="form-checkbox h-4 w-4 text-green-600">
+                    <span class="text-sm text-gray-700">Hide Inactive Users</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="hideMeCheckbox" class="form-checkbox h-4 w-4 text-green-600">
+                    <span class="text-sm text-gray-700">Hide me on the leaderboard</span>
+                </label>
+            </div>
+            <ul id="leaderboardList">
+                </ul>
+        </div>
+    </div>
+
+    <div id="alertBox" class="hidden"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+        import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, runTransaction, set, onDisconnect, push, remove } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyArcFy4YmV6TnG3FCXkkPQhThNaOneQEcg",
+            authDomain: "clickmultiplayer.firebaseapp.com",
+            databaseURL: "https://clickmultiplayer-default-rtdb.firebaseio.com",
+            projectId: "clickmultiplayer",
+            storageBucket: "clickmultiplayer.firebasestorage.app",
+            messagingSenderId: "677595330762",
+            appId: "1:677595330762:web:12c5256ddc8e1d83291c33",
+            measurementId: "G-5XDMJTGS4R"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const button = document.getElementById('clickButton');
+        const buttonText = document.getElementById('buttonText');
+        const spinner = document.getElementById('spinner');
+        const clickCountDisplay = document.getElementById('clickCountDisplay');
+        const activeUsersDisplay = document.getElementById('activeUsersDisplay');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const lockMessage = document.getElementById('lockMessage');
+        const chatToggleButton = document.getElementById('chatToggleButton');
+        const chatContainer = document.getElementById('chatContainer');
+        const nicknameInput = document.getElementById('nicknameInput');
+        const saveNicknameButton = document.getElementById('saveNicknameButton');
+        const chatInputArea = document.getElementById('chatInputArea');
+        const messageInput = document.getElementById('messageInput');
+        const sendMessageButton = document.getElementById('sendMessageButton');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatLockMessage = document.getElementById('chatLockMessage');
+        const leaderboardButton = document.getElementById('leaderboardButton');
+        const leaderboardModal = document.getElementById('leaderboardModal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const leaderboardList = document.getElementById('leaderboardList');
+        const hideInactiveCheckbox = document.getElementById('hideInactiveCheckbox');
+        const hideMeCheckbox = document.getElementById('hideMeCheckbox');
+        const alertBox = document.getElementById('alertBox');
+        const authButtons = document.getElementById('authButtons');
+        const gameUI = document.getElementById('gameUI');
+        const googleSignInButton = document.getElementById('googleSignInButton');
+        const anonymousSignInButton = document.getElementById('anonymousSignInButton');
+        const logoutButton = document.getElementById('logoutButton');
+
+        let userNickname = null;
+        let isChatOpen = false;
+        let allUsersData = {};
+        let activeUsers = {};
+        let currentUserId = null;
+        let unsubscribeGlobalCount = null;
+        let unsubscribeActiveUsers = null;
+        let unsubscribeAllUsers = null;
+        let unsubscribeUserNickname = null;
+        let unsubscribeUserPrivate = null;
+        let unsubscribeLocked = null;
+        let unsubscribeMessages = null;
+        let unsubscribeChatLocked = null;
+
+        function showAlert(message) {
+            alertBox.textContent = message;
+            alertBox.classList.remove('hidden');
+            setTimeout(() => {
+                alertBox.classList.add('show');
+            }, 10);
+            setTimeout(() => {
+                alertBox.classList.remove('show');
+                setTimeout(() => {
+                    alertBox.classList.add('hidden');
+                }, 300);
+            }, 3000);
+        }
+
+        function setLoading(isLoading) {
+            button.disabled = isLoading;
+            if (isLoading) {
+                button.classList.add('loading');
+                buttonText.style.display = 'none';
+                spinner.style.display = 'block';
+            } else {
+                button.classList.remove('loading');
+                buttonText.style.display = 'block';
+                spinner.style.display = 'none';
+            }
+        }
+        
+        function setLocked(isLocked) {
+            if (isLocked) {
+                button.classList.add('locked');
+                button.disabled = true;
+                buttonText.textContent = "Locked";
+                lockMessage.classList.remove('hidden');
+            } else {
+                button.classList.remove('locked');
+                button.disabled = false;
+                buttonText.textContent = "Click Me!";
+                lockMessage.classList.add('hidden');
+            }
+        }
+
+        function setChatLocked(isLocked) {
+            if (isLocked) {
+                sendMessageButton.disabled = true;
+                sendMessageButton.classList.add('bg-gray-400');
+                sendMessageButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                messageInput.disabled = true;
+                chatLockMessage.classList.remove('hidden');
+            } else {
+                sendMessageButton.disabled = false;
+                sendMessageButton.classList.remove('bg-gray-400');
+                sendMessageButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                messageInput.disabled = false;
+                chatLockMessage.classList.add('hidden');
+            }
+        }
+        
+        function showLeaderboardShimmer() {
+            const shimmerHTML = `
+                <li class="shimmer-item">
+                    <span class="shimmer-line rank"></span>
+                    <span class="shimmer-line user-info"></span>
+                    <span class="shimmer-line click-count"></span>
+                </li>
+                <li class="shimmer-item">
+                    <span class="shimmer-line rank"></span>
+                    <span class="shimmer-line user-info"></span>
+                    <span class="shimmer-line click-count"></span>
+                </li>
+                <li class="shimmer-item">
+                    <span class="shimmer-line rank"></span>
+                    <span class="shimmer-line user-info"></span>
+                    <span class="shimmer-line click-count"></span>
+                </li>
+            `;
+            leaderboardList.innerHTML = shimmerHTML;
+        }
+
+        function renderLeaderboard() {
+            leaderboardList.innerHTML = '';
+            
+            const sortedUsers = Object.entries(allUsersData).sort(([, a], [, b]) => (b.count || 0) - (a.count || 0));
+
+            const hideInactive = hideInactiveCheckbox.checked;
+            const hideMe = hideMeCheckbox.checked;
+            
+            let rank = 1;
+            sortedUsers.forEach(([userId, userData]) => {
+                if (hideMe && userId === currentUserId) {
+                    return;
+                }
+
+                const isUserActive = activeUsers.hasOwnProperty(userId);
+                
+                if (hideInactive && !isUserActive) {
+                    return;
+                }
+
+                if (userData.private && userId !== currentUserId) {
+                    return;
+                }
+
+                const listItem = document.createElement('li');
+                const nickname = userData.nickname || "Anonymous";
+                const status = isUserActive ? "Active" : "Inactive";
+                const statusColor = isUserActive ? 'text-green-600' : 'text-gray-500';
+
+                listItem.innerHTML = `
+                    <span class="rank">${rank}.</span>
+                    <div class="user-info">
+                        <span class="user-name">${nickname}</span>
+                        <span class="user-status ${statusColor}">${userId === currentUserId ? ' - You' : ''} - ${status}</span>
+                    </div>
+                    <span class="click-count">${(userData.count || 0).toLocaleString()}</span>
+                `;
+                leaderboardList.appendChild(listItem);
+                rank++;
+            });
+        }
+        
+        function updateChatUI(nickname) {
+            if (nickname) {
+                chatInputArea.classList.remove('hidden');
+                chatMessages.classList.remove('hidden');
+            } else {
+                chatInputArea.classList.add('hidden');
+                chatMessages.classList.add('hidden');
+            }
+        }
+
+        function setupListeners(user) {
+            if (user) {
+                currentUserId = user.uid;
+                userIdDisplay.textContent = currentUserId;
+
+                const userRef = ref(db, `active_users/${currentUserId}`);
+                const userSpecificCountRef = ref(db, `users/${currentUserId}/count`);
+                const userNicknameRef = ref(db, `users/${currentUserId}/nickname`);
+                const userPrivateRef = ref(db, `users/${currentUserId}/private`);
+                const globalCountRef = ref(db, 'global_count/count');
+                const usersRef = ref(db, 'active_users');
+                const lockedRef = ref(db, 'locked');
+                const allUsersRef = ref(db, `users`);
+                const messagesRef = ref(db, 'messages');
+                const chatLockedRef = ref(db, 'chatlocked');
+
+                // Set user presence and ensure it's removed on disconnect
+                onDisconnect(userRef).remove();
+                set(userRef, true);
+
+                unsubscribeGlobalCount = onValue(globalCountRef, (snapshot) => {
+                    const count = snapshot.val() || 0;
+                    clickCountDisplay.textContent = count.toLocaleString();
+                    setLoading(false);
+                });
+
+                unsubscribeActiveUsers = onValue(usersRef, (snapshot) => {
+                    activeUsers = snapshot.val() || {};
+                    const count = Object.keys(activeUsers).length;
+                    activeUsersDisplay.textContent = count;
+                    renderLeaderboard();
+                });
+
+                unsubscribeAllUsers = onValue(allUsersRef, (snapshot) => {
+                    allUsersData = snapshot.val() || {};
+                    renderLeaderboard();
+                });
+
+                unsubscribeLocked = onValue(lockedRef, (snapshot) => {
+                    const isLocked = snapshot.val() === true;
+                    setLocked(isLocked);
+                });
+
+                unsubscribeUserNickname = onValue(userNicknameRef, (snapshot) => {
+                    const nickname = snapshot.val();
+                    userNickname = nickname;
+                    nicknameInput.value = nickname || '';
+                    updateChatUI(userNickname);
+                });
+
+                unsubscribeUserPrivate = onValue(userPrivateRef, (snapshot) => {
+                    hideMeCheckbox.checked = snapshot.val() === true;
+                });
+                
+                unsubscribeMessages = onValue(messagesRef, (snapshot) => {
+                    chatMessages.innerHTML = '';
+                    snapshot.forEach((childSnapshot) => {
+                        const message = childSnapshot.val();
+                        const messageElement = document.createElement('div');
+                        messageElement.classList.add('chat-message');
+                        messageElement.innerHTML = `<span class="chat-nickname">${message.nickname}:</span> <span class="chat-text">${message.text}</span>`;
+                        chatMessages.appendChild(messageElement);
+                    });
+                    if (isChatOpen && userNickname) {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+                });
+
+                unsubscribeChatLocked = onValue(chatLockedRef, (snapshot) => {
+                    const isChatLocked = snapshot.val() === true;
+                    setChatLocked(isChatLocked);
+                });
+
+                button.addEventListener('click', async (event) => {
+                    if (button.disabled) {
+                        return;
+                    }
+                    const existingRipple = button.querySelector('.ripple');
+                    if (existingRipple) {
+                        existingRipple.remove();
+                    }
+                    const ripple = document.createElement('span');
+                    ripple.classList.add('ripple');
+                    const rect = button.getBoundingClientRect();
+                    const size = Math.max(rect.width, rect.height) * 1.5;
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    ripple.style.width = ripple.style.height = `${size}px`;
+                    ripple.style.left = `${x - size / 2}px`;
+                    ripple.style.top = `${y - size / 2}px`;
+                    button.appendChild(ripple);
+                    
+                    runTransaction(globalCountRef, (currentCount) => (currentCount || 0) + 1).catch(error => console.error("Global count transaction failed:", error));
+                    runTransaction(userSpecificCountRef, (currentCount) => (currentCount || 0) + 1).catch(error => console.error("User count transaction failed:", error));
+                });
+
+                chatToggleButton.addEventListener('click', () => {
+                    isChatOpen = !isChatOpen;
+                    if (isChatOpen) {
+                        chatContainer.classList.remove('hidden');
+                        if (userNickname) {
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+                    } else {
+                        chatContainer.classList.add('hidden');
+                    }
+                });
+
+                saveNicknameButton.addEventListener('click', () => {
+                    const nickname = nicknameInput.value.trim();
+                    if (nickname.length >= 3 && nickname.length <= 25) {
+                        set(userNicknameRef, nickname).then(() => {
+                            userNickname = nickname;
+                            updateChatUI(userNickname);
+                            showAlert("Nickname saved successfully!");
+                        }).catch((error) => {
+                            console.error("Error updating nickname:", error);
+                            showAlert("Error saving nickname. Please try again.");
+                        });
+                    } else {
+                        showAlert("Nickname must be between 3 and 25 characters.");
+                    }
+                });
+                
+                messageInput.addEventListener('keypress', (event) => {
+                    if (event.key === 'Enter') {
+                        sendMessageButton.click();
+                    }
+                });
+
+                sendMessageButton.addEventListener('click', () => {
+                    const message = messageInput.value.trim();
+                    const nickname = nicknameInput.value.trim();
+
+                    if (!nickname || nickname.length < 3 || nickname.length > 25) {
+                        showAlert("Please save a valid nickname (3-25 characters) before sending a message.");
+                        return;
+                    }
+                    if (message.length > 0 && message.length <= 500) {
+                        push(messagesRef, {
+                            nickname: userNickname,
+                            text: message,
+                            timestamp: Date.now()
+                        }).then(() => {
+                            messageInput.value = '';
+                        }).catch((error) => {
+                            console.error("Error sending message:", error);
+                            showAlert("Error sending message. Please try again.");
+                        });
+                    } else if (message.length === 0) {
+                        showAlert("Please enter a message to send.");
+                    } else if (message.length > 500) {
+                        showAlert("Message cannot exceed 500 characters.");
+                    }
+                });
+
+                leaderboardButton.addEventListener('click', () => {
+                    leaderboardModal.classList.remove('hidden');
+                    if (Object.keys(allUsersData).length === 0) {
+                        showLeaderboardShimmer();
+                    } else {
+                        renderLeaderboard();
+                    }
+                });
+
+                closeModalButton.addEventListener('click', () => {
+                    leaderboardModal.classList.add('hidden');
+                });
+
+                hideInactiveCheckbox.addEventListener('change', renderLeaderboard);
+                
+                hideMeCheckbox.addEventListener('change', (event) => {
+                    set(userPrivateRef, event.target.checked).then(() => {
+                        renderLeaderboard();
+                        showAlert("Privacy setting updated.");
+                    }).catch((error) => {
+                        console.error("Error updating privacy setting:", error);
+                        showAlert("Error updating privacy setting. Please try again.");
+                    });
+                });
+            }
+        }
+
+        function clearListeners() {
+            if (unsubscribeGlobalCount) unsubscribeGlobalCount();
+            if (unsubscribeActiveUsers) unsubscribeActiveUsers();
+            if (unsubscribeAllUsers) unsubscribeAllUsers();
+            if (unsubscribeLocked) unsubscribeLocked();
+            if (unsubscribeUserNickname) unsubscribeUserNickname();
+            if (unsubscribeUserPrivate) unsubscribeUserPrivate();
+            if (unsubscribeMessages) unsubscribeMessages();
+            if (unsubscribeChatLocked) unsubscribeChatLocked();
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            clearListeners();
+            if (user) {
+                authButtons.classList.add('hidden');
+                gameUI.classList.remove('hidden');
+                logoutButton.classList.remove('hidden');
+                googleSignInButton.classList.remove('loading');
+                setupListeners(user);
+            } else {
+                authButtons.classList.remove('hidden');
+                gameUI.classList.add('hidden');
+                logoutButton.classList.add('hidden');
+                userIdDisplay.textContent = 'Not signed in';
+            }
+        });
+
+        googleSignInButton.addEventListener('click', () => {
+            googleSignInButton.classList.add('loading');
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider).catch((error) => {
+                console.error("Google sign in failed:", error);
+                showAlert("Google sign in failed. Please try again.");
+            }).finally(() => {
+                googleSignInButton.classList.remove('loading');
+            });
+        });
+
+        anonymousSignInButton.addEventListener('click', () => {
+            signInAnonymously(auth).catch((error) => {
+                console.error("Anonymous sign in failed:", error);
+                showAlert("Anonymous sign in failed. Please try again.");
+            });
+        });
+
+        logoutButton.addEventListener('click', () => {
+            if (currentUserId) {
+                const userRef = ref(db, `active_users/${currentUserId}`);
+                onDisconnect(userRef).cancel();
+                remove(userRef);
+            }
+            signOut(auth).then(() => {
+                showAlert("Signed out successfully!");
+                // Force a page refresh to completely reset the application state.
+                window.location.reload();
+            }).catch((error) => {
+                console.error("Sign out failed:", error);
+                showAlert("Sign out failed. Please try again.");
+            });
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target === leaderboardModal) {
+                leaderboardModal.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
